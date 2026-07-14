@@ -1,42 +1,72 @@
 ---
-- name: Run Orthanc in Docker  # Main playbook name
-  hosts: localhost             # Run on local machine
-  connection: local            # Use local connection (no SSH)
-  become: yes                  # Run tasks with sudo
-  gather_facts: false          # Skip system info (faster)
+- name: Deploy Orthanc in Docker
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+
+  vars:
+    orthanc_container_name: orthanc
+    orthanc_image: orthancteam/orthanc:26.6.1
+    orthanc_http_port: 8042
+    orthanc_dicom_port: 4242
+    orthanc_data_dir: "{{ playbook_dir }}/orthanc-data"
+    orthanc_username: orthanc
+    orthanc_password: orthanc
+
+  pre_tasks:
+    - name: Ensure the host is Debian or Ubuntu based
+      ansible.builtin.fail:
+        msg: This playbook installs Docker with apt and is intended for Debian/Ubuntu Linux.
+      when: ansible_os_family != "Debian"
 
   tasks:
-    - name: Install Docker
-      apt:
-        name: docker.io        # Install Docker package
-        state: present         # Make sure it is installed
-        update_cache: yes      # Update package list
+    - name: Install Docker and Python Docker SDK
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - python3-docker
+        state: present
+        update_cache: true
 
-    - name: Start Docker service
-      service:
-        name: docker           # Docker service name
-        state: started         # Ensure it is running
-        enabled: true          # Start on system boot
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
 
-    - name: Install Python Docker module
-      pip:
-        name: docker           # Required for Ansible Docker module
-
-    - name: Create data directory
-      file:
-        path: ./orthanc-data   # Local folder for data
-        state: directory       # Create if not exists
+    - name: Create Orthanc data directory
+      ansible.builtin.file:
+        path: "{{ orthanc_data_dir }}"
+        state: directory
+        mode: "0755"
 
     - name: Run Orthanc container
       community.docker.docker_container:
-        name: orthanc
-        image: jodogne/orthanc-plugins:latest  # Orthanc Docker image
+        name: "{{ orthanc_container_name }}"
+        image: "{{ orthanc_image }}"
         state: started
-        restart_policy: always  # Restart if container stops
-        ports:
-          - "8042:8042"        # Web interface
-          - "4242:4242"        # DICOM port
+        restart_policy: unless-stopped
+        published_ports:
+          - "{{ orthanc_http_port }}:8042"
+          - "{{ orthanc_dicom_port }}:4242"
         volumes:
-          - ./orthanc-data:/var/lib/orthanc/db  # Save data locally
+          - "{{ orthanc_data_dir }}:/var/lib/orthanc/db"
         env:
-          VERBOSE_STARTUP: "true"  # Enable detailed logs
+          ORTHANC__NAME: Carebot Assignment Orthanc
+          ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+          ORTHANC__AUTHENTICATION_ENABLED: "true"
+          ORTHANC__REGISTERED_USERS: "{{ {orthanc_username: orthanc_password} | to_json }}"
+          VERBOSE_ENABLED: "true"
+
+    - name: Wait until Orthanc HTTP API is reachable
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ orthanc_http_port }}/system"
+        user: "{{ orthanc_username }}"
+        password: "{{ orthanc_password }}"
+        force_basic_auth: true
+        status_code: 200
+      register: orthanc_health
+      retries: 12
+      delay: 5
+      until: orthanc_health.status == 200
