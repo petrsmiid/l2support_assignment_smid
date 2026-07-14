@@ -21,3 +21,27 @@
 
 ---
 ## Task 2: Communication
+
+### 1. Based on the monitoring and logs, where is the most likely point of failure? Explain your logical deduction.
+Based on the provided logs and monitoring, the failure is on the hospital's side, likely inside their Autorouter system. Our Gateway is online, healthy, and has low CPU/RAM usage. The logs show that our system is successfully connecting to their Autorouter API (Heartbeat checks return "Status 200 OK"). However, we have not received any new scans since 14:12. This logically means that our system is working, but the hospital system is failing to send the images to us.
+
+### 2. Since we do not have direct access to the hospital's internal systems, what specific information or action do you need to request to move this investigation forward?
+We need to ask the hospital IT to check their internal systems. Specifically, we need them to check the Autorouter queue to see if the 20 scans are stuck there. We also need them to check their local system logs for any error messages that happened when their Autorouter tried to push data to our Gateway.
+
+### 3. Write an email reply to the L1 partner.
+**Subject:** RE: URGENT: Hospital XYZ - Doctors not receiving AI results
+
+Hi L1 Team,
+
+Thank you for reporting this issue. I have investigated our systems and I can confirm that our Carebot Gateway is online, healthy, and working correctly.
+
+According to our logs, the network connection to the hospital Autorouter is active (returning API "Status 200 OK"). However, our Gateway has not received any new X-ray scans since 14:12. This means the 20 scans are likely stuck somewhere on the hospital queue before they could be sent to us. 
+
+Since we do not have access to hospital internal systems, could you please contact the hospital IT department and ask them to:
+1. Check Autorouter queue to see if the scans are stuck there.
+2. Check internal logs for any specific errors when their system tried to send the data to our Gateway.
+
+Please let us know what has been found, and we will gladly help with further investigation!
+
+Best regards,
+L2 Support Team
