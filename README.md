@@ -18,7 +18,7 @@ After that, it runs the Orthanc server inside a Docker container and sets the re
 
 ## Usage / Task 3
 
-To execute the Bash script provided for Task 3, ensure it has the correct executable permissions and run it from your terminal:
+To execute the Bash script provided for Task 3, ensure it has the correct executable permissions and run it from Debian/Ubuntu:
 
 ```bash
 chmod +x setup.sh
