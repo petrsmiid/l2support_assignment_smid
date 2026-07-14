@@ -1,0 +1,42 @@
+---
+- name: Run Orthanc in Docker  # Main playbook name
+  hosts: localhost             # Run on local machine
+  connection: local            # Use local connection (no SSH)
+  become: yes                  # Run tasks with sudo
+  gather_facts: false          # Skip system info (faster)
+
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io        # Install Docker package
+        state: present         # Make sure it is installed
+        update_cache: yes      # Update package list
+
+    - name: Start Docker service
+      service:
+        name: docker           # Docker service name
+        state: started         # Ensure it is running
+        enabled: true          # Start on system boot
+
+    - name: Install Python Docker module
+      pip:
+        name: docker           # Required for Ansible Docker module
+
+    - name: Create data directory
+      file:
+        path: ./orthanc-data   # Local folder for data
+        state: directory       # Create if not exists
+
+    - name: Run Orthanc container
+      community.docker.docker_container:
+        name: orthanc
+        image: jodogne/orthanc-plugins:latest  # Orthanc Docker image
+        state: started
+        restart_policy: always  # Restart if container stops
+        ports:
+          - "8042:8042"        # Web interface
+          - "4242:4242"        # DICOM port
+        volumes:
+          - ./orthanc-data:/var/lib/orthanc/db  # Save data locally
+        env:
+          VERBOSE_STARTUP: "true"  # Enable detailed logs
